@@ -6,39 +6,61 @@ const path = require('path');
  * Utiliza Real-Time Amazon Data API (RapidAPI) como proveedor de los datos.
  */
 async function searchProducts(searchQuery) {
+  const cacheDir = path.join(__dirname, '../../cache/aws_mx/search');
+  // Limpiamos el texto buscado para que sea un nombre de archivo válido
+  const safeQuery = searchQuery.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  const cacheFile = path.join(cacheDir, `${safeQuery}.json`);
+
+  // 1. Verificar si el caché de la búsqueda existe y es de hoy
+  if (fs.existsSync(cacheFile)) {
+    try {
+      const cacheData = fs.readFileSync(cacheFile, 'utf8');
+      const parsedCache = JSON.parse(cacheData);
+      
+      if (parsedCache.create_at && parsedCache.result) {
+        const cacheDatePart = parsedCache.create_at.split(' ')[0];
+        const gtNow = getGuatemalaTime();
+
+        if (cacheDatePart === gtNow.dateOnly) {
+          console.log(`📦 Retornando búsqueda '${searchQuery}' desde caché local...`);
+          return parsedCache.result;
+        }
+      }
+    } catch (error) {
+      console.log('⚠️ Error al leer el caché de búsqueda. Se consultará de nuevo.');
+    }
+  }
+
+  // 2. Si no hay caché válido, buscar en la API
+  console.log(`🌐 Consultando búsqueda '${searchQuery}' en la API de Amazon...`);
   const apiKey = process.env.AMAZON_API_KEY;
   const apiHost = process.env.AMAZON_API_HOST;
   const searchBaseUrl = process.env.AMAZON_API_SEARCH_URL;
   
-  // Construimos la URL agregando el parámetro de búsqueda al endpoint configurado
   const url = `${searchBaseUrl}&query=${encodeURIComponent(searchQuery)}`;
 
-  const options = {
-    method: 'GET',
-    headers: {
-      'x-rapidapi-host': apiHost,
-      'x-rapidapi-key': apiKey
-    }
+  const options = { method: 'GET', headers: { 'x-rapidapi-host': apiHost, 'x-rapidapi-key': apiKey } };
+
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Error de la API (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+  const productsData = data.data && data.data.products ? data.data.products : data; 
+
+  // 3. Guardar el resultado en caché con el formato solicitado
+  const gtNow = getGuatemalaTime();
+  const cacheContent = {
+    create_at: gtNow.full,
+    result: productsData
   };
 
-  try {
-    const response = await fetch(url, options);
-    
-    if (!response.ok) {
-      // Leemos el error como texto en caso de que la API no devuelva un JSON
-      const errorText = await response.text();
-      throw new Error(`Error de la API (${response.status}): ${errorText}`);
-    }
+  fs.mkdirSync(cacheDir, { recursive: true });
+  fs.writeFileSync(cacheFile, JSON.stringify(cacheContent, null, 2));
 
-    // Si todo salió bien, convertimos a JSON
-    const data = await response.json();
-    
-    // RapidAPI suele devolver la lista dentro de data.data.products
-    return data.data && data.data.products ? data.data.products : data; 
-  } catch (error) {
-    console.error("Error en amazonModel:", error);
-    throw error;
-  }
+  return productsData;
 }
 
 /**
@@ -118,4 +140,49 @@ async function getCategories() {
   return categoriesData;
 }
 
-module.exports = { searchProducts, getCategories };
+/**
+ * Obtiene los detalles específicos de un producto por su ASIN (incluyendo stock y peso).
+ */
+async function getProductDetails(asin) {
+  const cacheDir = path.join(__dirname, '../../cache/aws_mx/details');
+  const cacheFile = path.join(cacheDir, `${asin}.json`);
+
+  // 1. Verificamos si existe en caché el detalle de este ASIN para el día de hoy
+  if (fs.existsSync(cacheFile)) {
+    try {
+      const cacheData = fs.readFileSync(cacheFile, 'utf8');
+      const parsedCache = JSON.parse(cacheData);
+      if (parsedCache.created_at && parsedCache.result) {
+        const cacheDatePart = parsedCache.created_at.split(' ')[0];
+        const gtNow = getGuatemalaTime();
+        if (cacheDatePart === gtNow.dateOnly) {
+          return parsedCache.result;
+        }
+      }
+    } catch (error) {
+      console.log('⚠️ Error al leer el caché de detalles.');
+    }
+  }
+
+  // 2. Si no hay caché válido, se consulta a la API
+  const apiKey = process.env.AMAZON_API_KEY;
+  const apiHost = process.env.AMAZON_API_HOST;
+  const url = `${process.env.AMAZON_API_DETAILS_URL}&asin=${asin}`;
+
+  const options = { method: 'GET', headers: { 'x-rapidapi-host': apiHost, 'x-rapidapi-key': apiKey } };
+  const response = await fetch(url, options);
+  
+  if (!response.ok) throw new Error(`Error de la API (${response.status})`);
+
+  const data = await response.json();
+  const productData = data.data || data; 
+
+  // 3. Guardar en caché
+  const gtNow = getGuatemalaTime();
+  fs.mkdirSync(cacheDir, { recursive: true });
+  fs.writeFileSync(cacheFile, JSON.stringify({ created_at: gtNow.full, result: productData }, null, 2));
+
+  return productData;
+}
+
+module.exports = { searchProducts, getCategories, getProductDetails };

@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Librería de iconos FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SweetAlert2 para alertas -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800">
     <!-- Menú Principal -->
@@ -20,8 +22,8 @@
             <!-- Buscador de Productos -->
             <div class="flex-1 min-w-[250px] max-w-xl mx-4">
                 <div class="flex items-center bg-white rounded-md overflow-hidden shadow-sm focus-within:ring-2 ring-yellow-400">
-                    <input id="inputBusqueda" type="text" class="w-full px-3 py-1.5 text-sm text-gray-700 focus:outline-none" placeholder="Buscar producto...">
-                    <button class="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold px-4 py-1.5 text-sm transition-colors" onclick="alert('Funcionalidad de búsqueda pendiente de desarrollar')">
+                    <input id="inputBusqueda" type="text" class="w-full px-3 py-1.5 text-sm text-gray-700 focus:outline-none" placeholder="Buscar producto..." onkeypress="manejarEnter(event)">
+                    <button class="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold px-4 py-1.5 text-sm transition-colors" onclick="ejecutarBusqueda()">
                         <i class="fas fa-search mr-1"></i> Buscar
                     </button>
                 </div>
@@ -30,10 +32,10 @@
             <!-- Opciones de Navegación -->
             <div class="flex space-x-6 font-medium text-sm items-center">
                 <button onclick="mostrarSeccion('categorias')" class="hover:text-yellow-300 transition-colors"><i class="fas fa-bars mr-1"></i> Categorías</button>
-                <button onclick="alert('Funcionalidad: Mis pedidos (Pendiente)')" class="hover:text-yellow-300 transition-colors"><i class="fas fa-box-open mr-1"></i> Mis pedidos</button>
-                <button onclick="alert('Funcionalidad: Carrito (Pendiente)')" class="hover:text-yellow-300 transition-colors"><i class="fas fa-shopping-cart mr-1"></i> Carrito</button>
-                <button onclick="alert('Funcionalidad: Ayuda (Pendiente)')" class="hover:text-yellow-300 transition-colors"><i class="fas fa-circle-question mr-1"></i> Ayuda</button>
-                <button onclick="alert('Funcionalidad: Iniciar sesión (Pendiente)')" class="bg-blue-800 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors border border-blue-500"><i class="fas fa-user mr-1"></i> Iniciar sesión</button>
+                <button onclick="mostrarAlerta('Funcionalidad: Mis pedidos (Pendiente)', 'warning')" class="hover:text-yellow-300 transition-colors"><i class="fas fa-box-open mr-1"></i> Mis pedidos</button>
+                <button id="btn-carrito" onclick="mostrarAlerta('Funcionalidad: Ver Carrito (Pendiente)', 'info')" class="hover:text-yellow-300 transition-colors"><i class="fas fa-shopping-cart mr-1"></i> Carrito</button>
+                <button onclick="mostrarAlerta('Funcionalidad: Ayuda (Pendiente)', 'info')" class="hover:text-yellow-300 transition-colors"><i class="fas fa-circle-question mr-1"></i> Ayuda</button>
+                <button onclick="mostrarAlerta('Funcionalidad: Iniciar sesión (Pendiente)', 'info')" class="bg-blue-800 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors border border-blue-500"><i class="fas fa-user mr-1"></i> Iniciar sesión</button>
             </div>
         </div>
     </nav>
@@ -44,7 +46,7 @@
         <!-- Sección Inicio (Mensaje de bienvenida) -->
         <div id="seccion-inicio" class="block text-center mt-12">
             <h1 class="text-4xl font-extrabold text-blue-600 mb-4">¡Bienvenido a eMercado!</h1>
-            <p class="text-lg text-gray-600">Explora y compra productos de Amazon México y recíbelos en la puerta de tu casa en Guatemala.</p>
+            <p class="text-lg text-gray-600">Explora y compra productos de México y recíbelos en la puerta de tu casa en Guatemala.</p>
             <p class="mt-4 text-gray-500">Utiliza el buscador superior o selecciona "Categorías" en el menú para empezar.</p>
         </div>
 
@@ -57,19 +59,446 @@
             </div>
         </div>
 
+        <!-- Sección Búsqueda (Oculta por defecto) -->
+        <div id="seccion-busqueda" class="hidden">
+            <h2 class="text-2xl font-semibold mb-6 border-b pb-2">Resultados de Búsqueda</h2>
+            <!-- Contenedor donde JavaScript inyectará los productos -->
+            <div id="busqueda-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <!-- Se inyectará el HTML desde JS -->
+            </div>
+        </div>
+
+        <!-- Sección Detalles (Oculta por defecto) -->
+        <div id="seccion-detalles" class="hidden">
+            <button onclick="mostrarSeccion('busqueda')" class="mb-4 text-blue-600 hover:text-blue-800 font-medium transition-colors"><i class="fas fa-arrow-left"></i> Volver a resultados de búsqueda</button>
+            <div id="detalles-container" class="bg-white rounded-lg shadow-md p-6">
+                <!-- Se inyectará el HTML desde JS -->
+            </div>
+        </div>
+
     </div>
 
     <script>
+        // Configuración de alertas Toast (arriba a la derecha)
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+                toast.addEventListener('mouseenter', Swal.stopTimer)
+                toast.addEventListener('mouseleave', Swal.resumeTimer)
+            }
+        });
+
+        function mostrarAlerta(mensaje, icono = 'info') {
+            Toast.fire({ icon: icono, title: mensaje });
+        }
+
+        // Lógica de Carrito de Compras (Local)
+        let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
+        actualizarContadorCarrito();
+
+        function actualizarContadorCarrito() {
+            const btnCarrito = document.getElementById('btn-carrito');
+            const totalItems = carrito.reduce((sum, item) => sum + (item.cantidad || 1), 0);
+            if (totalItems > 0) {
+                btnCarrito.innerHTML = `<i class="fas fa-shopping-cart mr-1"></i> (${totalItems}) Carrito`;
+            } else {
+                btnCarrito.innerHTML = `<i class="fas fa-shopping-cart mr-1"></i> Carrito`;
+            }
+        }
+
+        function agregarAlCarrito(asin, titleBase64, price, photoBase64, esDesdeDetalle = false) {
+            const title = decodeURIComponent(titleBase64);
+            const photoUrl = decodeURIComponent(photoBase64);
+            
+            let cantidadAAgregar = 1;
+            let maxStock = 99; // Límite por defecto
+            
+            if (esDesdeDetalle) {
+                const inputCantidad = document.getElementById('cantidad-producto');
+                if (inputCantidad) {
+                    cantidadAAgregar = parseInt(inputCantidad.value) || 1;
+                    maxStock = parseInt(inputCantidad.getAttribute('data-max')) || 99;
+                }
+            }
+
+            // Validar la cantidad total en carrito + la nueva a agregar contra el stock disponible
+            const index = carrito.findIndex(item => item.asin === asin);
+            let cantidadActual = index !== -1 ? (carrito[index].cantidad || 1) : 0;
+
+            if (cantidadActual + cantidadAAgregar > maxStock) {
+                mostrarAlerta(`No puedes agregar esa cantidad. Solo hay ${maxStock} unidades disponibles en stock.`, 'warning');
+                return;
+            }
+
+            if (index !== -1) {
+                carrito[index].cantidad = cantidadActual + cantidadAAgregar;
+            } else {
+                carrito.push({ asin, title, price, photoUrl, cantidad: cantidadAAgregar });
+            }
+
+            localStorage.setItem('carrito', JSON.stringify(carrito));
+            actualizarContadorCarrito();
+            mostrarAlerta(`¡${cantidadAAgregar} producto(s) agregado(s) al carrito exitosamente!`, 'success');
+        }
+
+        function cambiarCantidad(cambio) {
+            const input = document.getElementById('cantidad-producto');
+            if (!input) return;
+            let val = parseInt(input.value) || 1;
+            const max = parseInt(input.getAttribute('data-max')) || 99;
+            
+            val += parseInt(cambio);
+            
+            if (val < 1) val = 1;
+            if (val > max) {
+                val = max;
+                mostrarAlerta(`Solo hay ${max} unidades disponibles en stock.`, 'warning');
+            }
+            
+            input.value = val;
+        }
+
+        function validarCantidad(input) {
+            let val = parseInt(input.value);
+            const max = parseInt(input.getAttribute('data-max')) || 99;
+            
+            if (isNaN(val) || val < 1) {
+                input.value = 1;
+            } else if (val > max) {
+                input.value = max;
+                mostrarAlerta(`Solo hay ${max} unidades disponibles en stock.`, 'warning');
+            }
+        }
+
         // Controla la visibilidad de las secciones
         function mostrarSeccion(seccionId) {
             document.getElementById('seccion-inicio').classList.add('hidden');
             document.getElementById('seccion-categorias').classList.add('hidden');
+            document.getElementById('seccion-busqueda').classList.add('hidden');
+            document.getElementById('seccion-detalles').classList.add('hidden');
             
             document.getElementById('seccion-' + seccionId).classList.remove('hidden');
 
             if (seccionId === 'categorias') {
                 cargarCategorias();
             }
+        }
+
+        // Detectar si el usuario presiona Enter en el input de búsqueda
+        function manejarEnter(event) {
+            if (event.key === 'Enter') {
+                ejecutarBusqueda();
+            }
+        }
+
+        // Lógica principal de búsqueda
+        function ejecutarBusqueda() {
+            const textoBusqueda = document.getElementById('inputBusqueda').value.trim();
+            if (!textoBusqueda) return;
+
+            mostrarSeccion('busqueda');
+            const container = document.getElementById('busqueda-container');
+            container.innerHTML = '<p class="text-center text-gray-500 col-span-full py-10"><i class="fas fa-spinner fa-spin text-2xl"></i><br>Buscando productos...</p>';
+
+            fetch(`/api/amazon/buscar?q=${encodeURIComponent(textoBusqueda)}`)
+                .then(response => response.json())
+                .then(data => {
+                    container.innerHTML = ''; 
+                    if (!data.products || data.products.length === 0) {
+                        container.innerHTML = '<p class="text-center text-gray-500 col-span-full">No se encontraron productos para esta búsqueda.</p>';
+                        return;
+                    }
+
+                    // Estimación de entrega en Guatemala (Fecha de hoy + 7 días)
+                    const fechaGT = new Date();
+                    fechaGT.setDate(fechaGT.getDate() + 7);
+                    const options = { day: '2-digit', month: 'short', year: 'numeric' };
+
+                    data.products.forEach(prod => {
+                        const div = document.createElement('div');
+                        div.className = 'bg-white rounded-lg shadow-md p-4 flex flex-col hover:shadow-xl transition-shadow border border-gray-200';
+                        
+                        // Construcción de los atributos solicitados
+                        div.innerHTML = `
+                            <span class="hidden" data-id="${prod.asin}">${prod.asin}</span>
+                            <div class="h-48 w-full bg-white flex items-center justify-center mb-4 rounded overflow-hidden cursor-pointer" onclick="verDetallesProducto('${prod.asin}')">
+                                <img src="/api/amazon/imagen?url=${encodeURIComponent(prod.product_photo)}" alt="Foto del producto" class="max-h-full max-w-full object-contain hover:scale-105 transition-transform">
+                            </div>
+                            <h3 class="font-bold text-gray-800 text-sm line-clamp-2 mb-2 cursor-pointer hover:text-blue-600 transition-colors" title="${prod.product_title}" onclick="verDetallesProducto('${prod.asin}')">${prod.product_title}</h3>
+                            <div class="text-yellow-500 text-xs mb-2 font-medium">
+                                <i class="fas fa-star"></i> ${prod.product_star_rating || 'N/A'} <span class="text-gray-500 font-normal">(${prod.product_num_ratings || 0} opiniones)</span>
+                            </div>
+                            <div class="text-2xl font-extrabold text-blue-700 mb-4">${prod.product_price || 'Consultar'}</div>
+                            
+                            <div class="mt-auto text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                                <p><span class="font-semibold text-gray-800"><i class="fas fa-truck text-gray-400 w-4"></i> Amazon:</span> ${prod.delivery || 'Entrega estándar'}</p>
+                                <p class="text-green-700 mt-1"><span class="font-semibold"><i class="fas fa-map-marker-alt text-green-500 w-4"></i> Guatemala (Est.):</span> ${fechaGT.toLocaleDateString('es-GT', options)}</p>
+                            </div>
+                            
+                            <!-- Pasamos el título e imagen codificados para evitar errores con comillas -->
+                            <button onclick="agregarAlCarrito('${prod.asin}', '${encodeURIComponent(prod.product_title)}', '${prod.product_price}', '${encodeURIComponent(prod.product_photo)}')" class="mt-3 w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold py-2 rounded text-sm transition-colors shadow-sm"><i class="fas fa-cart-plus"></i> Agregar al Carrito</button>
+                        `;
+                        container.appendChild(div);
+                    });
+                })
+                .catch(error => {
+                    container.innerHTML = '<p class="text-center text-red-500 col-span-full">Ocurrió un error al buscar los productos.</p>';
+                });
+        }
+
+        // Muestra todos los detalles del producto interactuando de forma segura con el backend
+        function verDetallesProducto(asin) {
+            mostrarSeccion('detalles');
+            const container = document.getElementById('detalles-container');
+            container.innerHTML = '<p class="text-center text-gray-500 py-10"><i class="fas fa-spinner fa-spin text-2xl"></i><br>Obteniendo detalles del producto...</p>';
+            
+            // Añadimos un parámetro de tiempo para evitar que el navegador use un JSON guardado en caché antiguo
+            fetch(`/api/amazon/producto/${asin}?t=${new Date().getTime()}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.details) {
+                        const prod = data.details;
+                        console.log("Datos cargados para la vista:", prod); // Te ayudará a inspeccionar en la consola (F12)
+                        const isOutOfStock = prod.is_out_of_stock;
+                        const availability = prod.product_availability || (isOutOfStock ? 'Agotado' : 'Disponible');
+                        
+                        const stockHtml = isOutOfStock 
+                            ? `<span class="text-red-600 font-bold"><i class="fas fa-times-circle"></i> ${availability}</span>`
+                            : `<span class="text-green-600 font-bold"><i class="fas fa-check-circle"></i> ${availability}</span>`;
+
+                        // Lógica de Stock y Controles de Carrito
+                        let maxStock = 99; // Límite por defecto si Amazon no especifica la cantidad
+                        const matchStock = availability.match(/queda[^\d]*(\d+)/i);
+                        if (matchStock && matchStock[1]) {
+                            maxStock = parseInt(matchStock[1]);
+                        }
+
+                        let cartControlsHtml = '';
+                        if (isOutOfStock) {
+                            cartControlsHtml = `
+                                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-center gap-3">
+                                    <i class="fas fa-exclamation-triangle text-xl"></i>
+                                    <div>
+                                        <span class="font-bold block">Producto Agotado</span>
+                                        <span class="text-sm">Se nos informa que no está disponible el producto para la venta por falta de stock.</span>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            cartControlsHtml = `
+                                <div class="flex flex-wrap items-center gap-4 mb-6">
+                                    <div class="flex items-center border border-gray-300 rounded shadow-sm bg-white overflow-hidden h-12">
+                                        <button onclick="cambiarCantidad(-1)" class="w-12 h-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold transition-colors border-r border-gray-300 flex items-center justify-center"><i class="fas fa-minus"></i></button>
+                                        <input id="cantidad-producto" type="text" value="1" data-max="${maxStock}" class="w-16 h-full text-center font-bold text-gray-800 focus:outline-none focus:ring-2 ring-inset ring-blue-500 m-0" oninput="this.value = this.value.replace(/[^0-9]/g, '')" onchange="validarCantidad(this)">
+                                        <button onclick="cambiarCantidad(1)" class="w-12 h-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold transition-colors border-l border-gray-300 flex items-center justify-center"><i class="fas fa-plus"></i></button>
+                                    </div>
+                                    <button onclick="agregarAlCarrito('${prod.asin}', '${encodeURIComponent(prod.product_title)}', '${prod.product_price}', '${encodeURIComponent(prod.product_photo)}', true)" class="flex-1 min-w-[200px] h-12 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold px-8 rounded shadow-sm transition-colors text-lg flex items-center justify-center gap-2">
+                                        <i class="fas fa-cart-plus"></i> Agregar al Carrito
+                                    </button>
+                                </div>
+                            `;
+                        }
+
+                        // Lógica de Tiempos de Entrega (Bodega vs Guatemala)
+                        const deliveryHtml = `
+                            <div class="bg-blue-50 border border-blue-100 p-4 rounded-lg mb-6 text-sm">
+                                <div class="flex items-start gap-3 mb-2">
+                                    <i class="fas fa-warehouse text-blue-600 mt-1 text-lg"></i>
+                                    <div><span class="font-bold text-gray-800">Llegada a Bodega (México/US):</span><br>
+                                    <span class="text-gray-700">${prod.delivery || 'Entrega estándar'}</span></div>
+                                </div>
+                                <div class="flex items-start gap-3 mt-3 pt-3 border-t border-blue-200">
+                                    <i class="fas fa-map-marked-alt text-green-600 mt-1 text-lg"></i>
+                                    <div><span class="font-bold text-gray-800">Llegada a tu casa (Guatemala):</span><br>
+                                    <span class="text-green-700 font-bold">+ 3 días hábiles adicionales</span> tras recibir en bodega.</div>
+                                </div>
+                            </div>
+                        `;
+
+                        // 1. Galería de Fotos (Miniaturas interactuando con la imagen principal)
+                        let galleryHtml = '';
+                        if (prod.product_photos && prod.product_photos.length > 0) {
+                            galleryHtml = '<div class="flex gap-2 overflow-x-auto mt-4 py-2">';
+                            prod.product_photos.forEach(photo => {
+                                const proxyUrl = `/api/amazon/imagen?url=${encodeURIComponent(photo)}`;
+                                galleryHtml += `<img src="${proxyUrl}" class="w-16 h-16 object-contain border rounded cursor-pointer hover:border-blue-500 hover:shadow-md transition-all bg-white" onclick="document.getElementById('img-main').src='${proxyUrl}'" alt="Miniatura">`;
+                            });
+                            galleryHtml += '</div>';
+                        }
+
+                        // 2. Galería de Videos
+                        let videosHtml = '';
+                        if (prod.product_videos && prod.product_videos.length > 0) {
+                            videosHtml = '<h3 class="text-lg font-bold mt-6 mb-2 border-b pb-1">Videos del Producto</h3><div class="flex gap-4 overflow-x-auto py-2">';
+                            prod.product_videos.forEach(video => {
+                                // La API puede enviar un objeto con url o directamente el string
+                                const vidUrl = typeof video === 'string' ? video : (video.url || video.link);
+                                if(vidUrl) {
+                                   videosHtml += `<video controls class="h-40 rounded shadow-sm bg-black"><source src="${vidUrl}" type="video/mp4">Tu navegador no soporta videos.</video>`;
+                                }
+                            });
+                            videosHtml += '</div>';
+                        }
+
+                        // 3. Acerca del producto (Viñetas / Descripciones largas)
+                        let aboutHtml = '';
+                        if (prod.about_product && prod.about_product.length > 0) {
+                            aboutHtml = '<ul class="list-disc pl-5 text-gray-700 text-sm space-y-2 mt-2">';
+                            prod.about_product.forEach(item => {
+                                aboutHtml += `<li>${item}</li>`;
+                            });
+                            aboutHtml += '</ul>';
+                        } else {
+                            aboutHtml = `<p class="text-gray-700 whitespace-pre-line text-sm mt-2">${prod.product_description || 'Sin descripción detallada disponible.'}</p>`;
+                        }
+
+                        // 4. Especificaciones Técnicas (Excluyendo ASIN)
+                        let specsHtml = '';
+                        const specs = { ...(prod.product_information || {}), ...(prod.product_details || {}) };
+                        if (specs && Object.keys(specs).length > 0) {
+                            specsHtml = '<h3 class="text-2xl font-bold mt-10 mb-6 text-gray-800 flex items-center border-b-2 border-blue-500 pb-2"><i class="fas fa-clipboard-list text-blue-600 mr-3"></i> Información del Producto</h3><div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm text-gray-700">';
+                            for (const [key, value] of Object.entries(specs)) {
+                                if (key.toUpperCase() !== 'ASIN') {
+                                    specsHtml += `<div class="bg-gray-50 p-3 rounded border border-gray-200 shadow-sm"><span class="font-bold text-gray-900">${key}:</span> ${value}</div>`;
+                                }
+                            }
+                            specsHtml += '</div>';
+                        }
+
+                        // 5. Etiquetas de promociones (Best Seller, Amazon Choice)
+                        let badgesHtml = '<div class="flex flex-wrap gap-2 mb-3">';
+                        if (prod.is_best_seller) badgesHtml += '<span class="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded shadow-sm">Más vendido</span>';
+                        if (prod.sales_volume) badgesHtml += `<span class="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded shadow-sm">${prod.sales_volume}</span>`;
+                        badgesHtml += '</div>';
+
+                        // 6. Distribución de Calificaciones
+                        let ratingDistHtml = '';
+                        if (prod.rating_distribution && Object.keys(prod.rating_distribution).length > 0) {
+                            ratingDistHtml = `<h3 class="text-2xl font-bold mt-10 mb-6 text-gray-800 flex items-center border-b-2 border-blue-500 pb-2"><i class="fas fa-comments text-blue-600 mr-3"></i> Opiniones de clientes</h3>`;
+                            ratingDistHtml += `<div class="flex items-center gap-4 mb-4"><div class="text-4xl font-black text-gray-800">${prod.product_star_rating || '0'}</div><div><div class="text-yellow-500 text-lg"><i class="fas fa-star"></i> de 5</div><div class="text-sm text-gray-500">${prod.product_num_ratings || 0} calificaciones globales</div></div></div>`;
+                            [5, 4, 3, 2, 1].forEach(star => {
+                                const pct = prod.rating_distribution[star.toString()] || 0;
+                                ratingDistHtml += `
+                                    <div class="flex items-center text-sm text-gray-600 mb-1">
+                                        <span class="w-16 whitespace-nowrap text-blue-600 hover:underline cursor-pointer">${star} estrellas</span>
+                                        <div class="flex-1 h-4 mx-3 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                                            <div class="h-full bg-yellow-400" style="width: ${pct}%"></div>
+                                        </div>
+                                        <span class="w-12 text-right">${pct}%</span>
+                                    </div>
+                                `;
+                            });
+                        }
+
+                        // 7. Top Reviews (Reseñas)
+                        let reviewsHtml = '';
+                        if (prod.top_reviews && prod.top_reviews.length > 0) {
+                            reviewsHtml = '<h3 class="text-2xl font-bold mt-12 mb-6 text-gray-800 flex items-center border-b-2 border-blue-500 pb-2"><i class="fas fa-star-half-alt text-blue-600 mr-3"></i> Principales Reseñas</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-6">';
+                            prod.top_reviews.forEach(review => {
+                                let stars = '';
+                                for(let i=1; i<=5; i++) stars += `<i class="fas fa-star ${i <= parseInt(review.review_star_rating) ? 'text-yellow-500' : 'text-gray-300'}"></i>`;
+                                reviewsHtml += `
+                                    <div class="bg-white p-5 rounded-lg shadow-sm border border-gray-200">
+                                        <div class="flex items-center gap-3 mb-2">
+                                            <img src="${review.review_author_avatar || 'https://via.placeholder.com/40'}" class="w-8 h-8 rounded-full bg-gray-100">
+                                            <span class="font-bold text-gray-800 text-sm">${review.review_author}</span>
+                                        </div>
+                                        <div class="flex items-center gap-2 mb-1"><div class="text-xs">${stars}</div><span class="font-bold text-sm text-gray-900">${review.review_title}</span></div>
+                                        <div class="text-xs text-gray-500 mb-3">${review.review_date}</div>
+                                        <p class="text-sm text-gray-700 italic">"${review.review_comment}"</p>
+                                    </div>
+                                `;
+                            });
+                            reviewsHtml += '</div>';
+                        }
+
+                        // 8. Imágenes A+ (Marketing)
+                        let aplusHtml = '';
+                        if (prod.aplus_images && prod.aplus_images.length > 0) {
+                            aplusHtml = '<h3 class="text-2xl font-bold mt-12 mb-6 text-gray-800 flex items-center justify-center border-b-2 border-blue-500 pb-2"><i class="fas fa-bullhorn text-blue-600 mr-3"></i> Más información del fabricante</h3><div class="flex flex-col items-center gap-2 bg-white p-4 rounded border border-gray-100 shadow-sm">';
+                            const aplusArray = Array.isArray(prod.aplus_images) ? prod.aplus_images : [prod.aplus_images];
+                            aplusArray.forEach(img => {
+                                if (typeof img === 'string' && img.trim() !== '') {
+                                    const proxyUrl = `/api/amazon/imagen?url=${encodeURIComponent(img)}`;
+                                    aplusHtml += `<img src="${proxyUrl}" class="max-w-full md:max-w-4xl rounded" alt="A+ Image" loading="lazy">`;
+                                }
+                            });
+                            aplusHtml += '</div>';
+                        } else {
+                            aplusHtml = '<p class="text-sm text-gray-400 mt-8 text-center italic border-t pt-4">Este producto específico no cuenta con imágenes A+ del fabricante en Amazon.</p>';
+                        }
+
+                        // 9. Productos Relacionados
+                        let relatedHtml = '';
+                        if (prod.related_products && prod.related_products.length > 0) {
+                            relatedHtml = '<h3 class="text-2xl font-bold mt-12 mb-6 text-gray-800 flex items-center border-b-2 border-blue-500 pb-2"><i class="fas fa-layer-group text-blue-600 mr-3"></i> Productos relacionados</h3><div class="flex overflow-x-auto gap-4 pb-4 px-4 bg-gray-50 rounded-lg pt-4 shadow-inner">';
+                            const relatedArray = Array.isArray(prod.related_products) ? prod.related_products : [prod.related_products];
+                            relatedArray.forEach(rel => {
+                                if (rel && rel.product_photo) {
+                                    const proxyUrl = `/api/amazon/imagen?url=${encodeURIComponent(rel.product_photo)}`;
+                                    const priceStr = rel.product_price_currency ? `${rel.product_price_currency} ${rel.product_price}` : `$${rel.product_price}`;
+                                    relatedHtml += `
+                                        <div class="min-w-[220px] max-w-[220px] bg-white rounded-lg shadow border border-gray-200 p-3 flex flex-col cursor-pointer hover:border-blue-500 transition-colors" onclick="verDetallesProducto('${rel.asin}')">
+                                            <div class="h-32 w-full flex justify-center items-center mb-3 bg-white"><img src="${proxyUrl}" class="max-h-full object-contain" loading="lazy"></div>
+                                            <h4 class="text-xs font-medium text-gray-800 line-clamp-3 mb-2" title="${rel.product_title}">${rel.product_title}</h4>
+                                            <div class="text-blue-700 font-extrabold text-lg mt-auto">${priceStr}</div>
+                                        </div>
+                                    `;
+                                }
+                            });
+                            relatedHtml += '</div>';
+                        } else {
+                            relatedHtml = '<p class="text-sm text-gray-400 mt-8 text-center italic border-t pt-4">No hay productos relacionados disponibles para este artículo.</p>';
+                        }
+
+                        container.innerHTML = `
+                            <div class="flex flex-col lg:flex-row gap-10">
+                                <div class="lg:w-2/5 flex flex-col items-center">
+                                    <div class="w-full bg-white p-4 rounded border border-gray-200 flex justify-center h-80">
+                                        <img id="img-main" src="/api/amazon/imagen?url=${encodeURIComponent(prod.product_photo)}" alt="Foto principal" class="max-w-full rounded object-contain max-h-full">
+                                    </div>
+                                    ${galleryHtml}
+                                    ${videosHtml}
+                                </div>
+                                <div class="lg:w-3/5">
+                                    ${badgesHtml}
+                                    <h2 class="text-2xl font-bold text-gray-800 mb-1">${prod.product_title}</h2>
+                                                                        
+                                    <div class="text-yellow-500 text-sm mb-4 font-medium flex items-center gap-2">
+                                        <i class="fas fa-star"></i> ${prod.product_star_rating || 'N/A'} <span class="text-gray-500 font-normal">(${prod.product_num_ratings || 0} opiniones)</span>
+                                    </div>
+                                    
+                                    <div class="text-3xl font-extrabold text-blue-700 mb-1">${prod.product_price || 'Consultar'}</div>
+                                    ${prod.product_original_price ? `<div class="text-sm text-gray-500 line-through mb-4">Precio original: ${prod.product_original_price}</div>` : '<div class="mb-4"></div>'}
+                                    
+                                    <div class="mb-4 text-sm bg-gray-100 p-3 rounded border border-gray-200">${stockHtml}</div>
+                                    
+                                    ${deliveryHtml}
+                                    
+                                    ${cartControlsHtml}
+                                    
+                                    <h3 class="text-xl font-bold mt-6 mb-3 text-gray-800 flex items-center border-b-2 border-blue-200 pb-2"><i class="fas fa-info-circle text-blue-600 mr-2"></i> Acerca de este artículo</h3>
+                                    ${aboutHtml}
+                                </div>
+                            </div>
+                            
+                            <div class="mt-8">
+                                ${relatedHtml}
+                                ${specsHtml}
+                                ${aplusHtml}
+                                ${ratingDistHtml}
+                                ${reviewsHtml}
+                            </div>
+                        `;
+                    } else {
+                        container.innerHTML = '<p class="text-red-500 text-center py-10">Error al obtener los detalles del producto.</p>';
+                    }
+                })
+                .catch(() => container.innerHTML = '<p class="text-red-500 text-center py-10">Error de conexión con el servidor.</p>');
         }
 
         // Lógica para cargar las categorías solo una vez
