@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eMercado - Inicio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Librería de iconos FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 font-sans text-gray-800">
+    <!-- Menú Principal -->
+    <nav class="bg-blue-600 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+            <!-- Logo -->
+            <div class="text-2xl font-extrabold cursor-pointer flex items-center gap-2" onclick="mostrarSeccion('inicio')">
+                <i class="fas fa-shopping-bag"></i> eMercado
+            </div>
+            
+            <!-- Buscador de Productos -->
+            <div class="flex-1 min-w-[250px] max-w-xl mx-4">
+                <div class="flex items-center bg-white rounded-md overflow-hidden shadow-sm focus-within:ring-2 ring-yellow-400">
+                    <input id="inputBusqueda" type="text" class="w-full px-3 py-1.5 text-sm text-gray-700 focus:outline-none" placeholder="Buscar producto...">
+                    <button class="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold px-4 py-1.5 text-sm transition-colors" onclick="alert('Funcionalidad de búsqueda pendiente de desarrollar')">
+                        <i class="fas fa-search mr-1"></i> Buscar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Opciones de Navegación -->
+            <div class="flex space-x-6 font-medium text-sm items-center">
+                <button onclick="mostrarSeccion('categorias')" class="hover:text-yellow-300 transition-colors"><i class="fas fa-bars mr-1"></i> Categorías</button>
+                <button onclick="alert('Funcionalidad: Mis pedidos (Pendiente)')" class="hover:text-yellow-300 transition-colors"><i class="fas fa-box-open mr-1"></i> Mis pedidos</button>
+                <button onclick="alert('Funcionalidad: Carrito (Pendiente)')" class="hover:text-yellow-300 transition-colors"><i class="fas fa-shopping-cart mr-1"></i> Carrito</button>
+                <button onclick="alert('Funcionalidad: Ayuda (Pendiente)')" class="hover:text-yellow-300 transition-colors"><i class="fas fa-circle-question mr-1"></i> Ayuda</button>
+                <button onclick="alert('Funcionalidad: Iniciar sesión (Pendiente)')" class="bg-blue-800 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors border border-blue-500"><i class="fas fa-user mr-1"></i> Iniciar sesión</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenedor Principal -->
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        
+        <!-- Sección Inicio (Mensaje de bienvenida) -->
+        <div id="seccion-inicio" class="block text-center mt-12">
+            <h1 class="text-4xl font-extrabold text-blue-600 mb-4">¡Bienvenido a eMercado!</h1>
+            <p class="text-lg text-gray-600">Explora y compra productos de Amazon México y recíbelos en la puerta de tu casa en Guatemala.</p>
+            <p class="mt-4 text-gray-500">Utiliza el buscador superior o selecciona "Categorías" en el menú para empezar.</p>
+        </div>
+
+        <!-- Sección Categorías (Oculta por defecto) -->
+        <div id="seccion-categorias" class="hidden">
+            <h2 class="text-2xl font-semibold mb-6 border-b pb-2">Categorías Disponibles</h2>
+            <!-- Contenedor donde JavaScript inyectará las categorías -->
+            <div id="categorias-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <p class="text-center text-gray-500 col-span-full">Cargando categorías...</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Controla la visibilidad de las secciones
+        function mostrarSeccion(seccionId) {
+            document.getElementById('seccion-inicio').classList.add('hidden');
+            document.getElementById('seccion-categorias').classList.add('hidden');
+            
+            document.getElementById('seccion-' + seccionId).classList.remove('hidden');
+
+            if (seccionId === 'categorias') {
+                cargarCategorias();
+            }
+        }
+
+        // Lógica para cargar las categorías solo una vez
+        let categoriasCargadas = false;
+        function cargarCategorias() {
+            if (categoriasCargadas) return; // Si ya se cargaron, no vuelve a consumir la API
+
+            fetch('/api/amazon/categorias')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('categorias-container');
+                    container.innerHTML = ''; 
+
+                    data.categories.forEach(cat => {
+                        const div = document.createElement('div');
+                        div.className = 'bg-white rounded-lg shadow p-4 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 border-t-4 border-blue-500 flex items-center justify-center text-center cursor-pointer';
+                        div.innerHTML = `<span class="font-medium text-gray-700">${cat.name}</span>`;
+                        container.appendChild(div);
+                    });
+                    categoriasCargadas = true;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('categorias-container').innerHTML = '<p class="text-red-500 col-span-full text-center">Error al cargar las categorías.</p>';
+                });
+        }
+    </script>
+</body>
+</html>
