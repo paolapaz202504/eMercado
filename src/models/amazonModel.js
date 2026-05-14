@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
-const { getExchangeRate } = require('./exchangeModel');
+const { getGuatemalaTime } = require('../utils/timeUtils');
+const {ratesForCalculatingPrice} = require('./ratesForCalculatingPriceModel');  
 
 /**
  * Modelo para interactuar con la información de Amazon México.
@@ -36,7 +37,7 @@ async function searchProducts(searchQuery) {
   console.log(`🌐 Consultando búsqueda '${searchQuery}' en la API de Amazon...`);
   
   // Obtener el la tasa de cambio calculada antes de procesar los detalles
-  const rateData = await getRateCalculated();
+  const rateData = await ratesForCalculatingPrice();
   
   const apiKey = process.env.AMAZON_API_KEY;
   const apiHost = process.env.AMAZON_API_HOST;
@@ -64,13 +65,13 @@ async function searchProducts(searchQuery) {
         if (match) parsedPrice = parseFloat(match[0].replace(/,/g, ''));
       }
       let basePriceGTQ = parsedPrice ? parsedPrice * rateData.rate : null;
-      let insuranceValue= basePriceGTQ * rateData.insuranceCommission;
-      let commissionValue = basePriceGTQ * rateData.comissionRate;
+      let insuranceValue = basePriceGTQ ? basePriceGTQ * rateData.insuranceCommission : null;
+      let commissionValue = basePriceGTQ ? basePriceGTQ * rateData.comissionRate : null;
       
-      let importDutyValue = basePriceGTQ * rateData.importDutyRate;
-      let valueAddedValue = (basePriceGTQ+importDutyValue) * rateData.valueAddedRate;
+      let importDutyValue = basePriceGTQ ? basePriceGTQ * rateData.importDutyRate : null;
+      let valueAddedValue = basePriceGTQ ? (basePriceGTQ+importDutyValue) * rateData.valueAddedRate : null;
 
-      let productPrice = basePriceGTQ + insuranceValue + commissionValue + importDutyValue + valueAddedValue; 
+      let productPrice = basePriceGTQ ? basePriceGTQ + insuranceValue + commissionValue + importDutyValue + valueAddedValue : null; 
       
       console.log('---------------------------------------------');
       console.log(`Producto: ${prod.product_title}`);
@@ -109,82 +110,6 @@ async function searchProducts(searchQuery) {
   return productsData;
 }
 
-/**
- * Función auxiliar para obtener la fecha y hora actual en la zona horaria de Guatemala
- */
-function getGuatemalaTime() {
-  // Convertimos la hora actual a la hora local de Guatemala
-  const d = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Guatemala" }));
-  const pad = (n) => n.toString().padStart(2, '0');
-  const datePart = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
-  const timePart = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  return { full: `${datePart} ${timePart}`, dateOnly: datePart };
-}
-
-/**
- * Obtiene la lista de categorías, utilizando caché para no saturar la API.
- */
-async function getCategories() {
-  // Definimos las rutas absolutas para nuestra carpeta y archivo de caché
-  const cacheDir = path.join(__dirname, '../../cache/aws_mx');
-  const cacheFile = path.join(cacheDir, 'categories.json');
-
-  // 1. Verificamos si el caché existe y si es del día de hoy
-  if (fs.existsSync(cacheFile)) {
-    try {
-      const cacheData = fs.readFileSync(cacheFile, 'utf8');
-      const parsedCache = JSON.parse(cacheData);
-      
-      // Verificamos que tenga la nueva estructura
-      if (parsedCache.created_at && parsedCache.categories) {
-        const cacheDatePart = parsedCache.created_at.split(' ')[0]; // Extrae solo el "dd/mm/yyyy"
-        const gtNow = getGuatemalaTime();
-
-        if (cacheDatePart === gtNow.dateOnly) {
-          console.log('📦 Retornando categorías desde el caché local...');
-          return parsedCache.categories;
-        }
-      }
-    } catch (error) {
-      console.log('⚠️ Error al leer el formato del caché. Se actualizará.');
-    }
-  }
-
-  // 2. Si no hay caché o no es de hoy, consultamos la API
-  console.log('🌐 Consultando categorías desde la API de Amazon...');
-  const apiKey = process.env.AMAZON_API_KEY;
-  const apiHost = process.env.AMAZON_API_HOST;
-  const url = process.env.AMAZON_API_CATEGORIES_URL;
-
-  const options = {
-    method: 'GET',
-    headers: {
-      'x-rapidapi-host': apiHost,
-      'x-rapidapi-key': apiKey
-    }
-  };
-
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Error de la API (${response.status}): ${errorText}`);
-  }
-
-  const data = await response.json();
-  const categoriesData = data.data || data;
-  
-  // 3. Guardamos el resultado en caché creando las carpetas si no existen
-  const gtNow = getGuatemalaTime();
-  const cacheContent = {
-    created_at: gtNow.full,
-    categories: categoriesData
-  };
-
-  fs.mkdirSync(cacheDir, { recursive: true });
-  fs.writeFileSync(cacheFile, JSON.stringify(cacheContent, null, 2));
-
-  return categoriesData;
-}
 
 /**
  * Obtiene los detalles específicos de un producto por su ASIN (incluyendo stock y peso).
@@ -212,8 +137,6 @@ async function getProductDetails(asin) {
 
   // 2. Si no hay caché válido, se consulta a la API
   
-  // Obtener el la tasa de cambio calculada antes de procesar los detalles
-  const rateData = await getRateCalculated();
   
   const apiKey = process.env.AMAZON_API_KEY;
   const apiHost = process.env.AMAZON_API_HOST;
@@ -233,6 +156,11 @@ async function getProductDetails(asin) {
     const match = productData.product_price.toString().match(/[\d,.]+/);
     if (match) parsedPrice = parseFloat(match[0].replace(/,/g, ''));
   }
+
+  
+  // Obtener el la tasa de cambio calculada antes de procesar los detalles
+  const rateData = await ratesForCalculatingPrice(productData.category.id);
+
   productData.exchange_rate_mxn_usd = rateData.mxn_usd_adjusted;
   productData.exchange_rate_usd_gtq = rateData.usd_gtq_adjusted;
   productData.foreign_exchange_management_expense = rateData.foreignExchangeManagementExpense;
@@ -243,13 +171,13 @@ async function getProductDetails(asin) {
   productData.exchange_rate_gt_mx = rateData.rate;
 
   let basePriceGTQ = parsedPrice ? parsedPrice * rateData.rate : null;
-  let insuranceValue= basePriceGTQ * rateData.insuranceCommission;
-  let commissionValue = basePriceGTQ * rateData.comissionRate;
+  let insuranceValue = basePriceGTQ ? basePriceGTQ * rateData.insuranceCommission : null;
+  let commissionValue = basePriceGTQ ? basePriceGTQ * rateData.comissionRate : null;
   
-  let importDutyValue = basePriceGTQ * rateData.importDutyRate;
-  let valueAddedValue = (basePriceGTQ+importDutyValue) * rateData.valueAddedRate;
+  let importDutyValue = basePriceGTQ ? basePriceGTQ * rateData.importDutyRate : null;
+  let valueAddedValue = basePriceGTQ ? (basePriceGTQ+importDutyValue) * rateData.valueAddedRate : null;
 
-  let productPrice = basePriceGTQ + insuranceValue + commissionValue + importDutyValue + valueAddedValue; 
+  let productPrice = basePriceGTQ ? basePriceGTQ + insuranceValue + commissionValue + importDutyValue + valueAddedValue : null; 
   
   productData.product_price_gt = productPrice;
 
@@ -268,59 +196,5 @@ async function getProductDetails(asin) {
   return productData;
 }
 
-async function getRateCalculated() {
-  // Obtener el tipo de cambio antes de procesar los detalles
-  const exchangeData = await getExchangeRate();
-  
-  // comisión por seguro en el manejo de posibles devoluciones, daños o pérdidas en el proceso de compra internacional (10%)
-  const insuranceCommission = parseFloat(process.env.INSURANCE_COMMISSION) || 0.10;
 
-  // Comisión por servicio de compras internacionales
-  const comissionRate = parseFloat(process.env.COMMISSION_PERCENTAGE) || 0.10;
-
-  // Arbitraje de divisas: MXN -> USD -> GTQ + Gasto de Gestión (4%)
-  const exchangeRateAdjustmentUsdGTQ = parseFloat(process.env.EXCHANGE_RATE_ADJUSTMENT_USD_GTQ) || 0.02;
-  const exchangeRateAdjustmentMxnUsd = parseFloat(process.env.EXCHANGE_RATE_ADJUSTMENT_MXN_USD) || 0.002;
-
-  // Obtener los tipos de cambio base desde el resultado de getExchangeRate()
-  const mxn_usd = exchangeData.exchange_rate_mxn_usd;
-  const usd_gtq = exchangeData.exchange_rate_usd_gtq;
-  
-  // Calcular el tipo de cambio ajustado
-  const mxn_usd_adjusted = mxn_usd ? (mxn_usd - exchangeRateAdjustmentMxnUsd) : null;
-  const usd_gtq_adjusted = usd_gtq ? (usd_gtq * (1 + exchangeRateAdjustmentUsdGTQ)) : null;
-  
-  // Obtenemos el gasto de gestión y la comisión para calcular el tipo de cambio final ajustado
-  const foreignExchangeManagementExpense = parseFloat(process.env.FOREIGN_EXCHANGE_MANAGEMENT_EXPENSE) || 0.04;
-
-  // Obtener tasa de DAI e IVA.
-  const importDutyRate = parseFloat(process.env.IMPORT_DUTY_RATE) || 0.15; // DAI del 15%
-  const valueAddedRate = parseFloat(process.env.VALUE_ADDED_RATE) || 0.138; // IVA del 13.8%
-  
-  const rate = (mxn_usd_adjusted && usd_gtq_adjusted && foreignExchangeManagementExpense 
-                //&& comissionRate && insuranceCommission
-                //&& importDutyRate && valueAddedRate
-                ) 
-                ? 
-                ( mxn_usd_adjusted * usd_gtq_adjusted * (1 + foreignExchangeManagementExpense) 
-                  //* (1 + comissionRate) * (1 + insuranceCommission) 
-                  //* (1 + importDutyRate) * (1 + valueAddedRate) 
-                  )
-                : 
-                0.60;
-
-  console.log(`Tipo de cambio ajustado calculado: ${rate.toFixed(4)} GTQ por MXN`); 
-
-  return {
-    rate, 
-    mxn_usd_adjusted, 
-    usd_gtq_adjusted,
-    foreignExchangeManagementExpense,
-    comissionRate,
-    insuranceCommission,
-    importDutyRate,
-    valueAddedRate
-  };
-}
-
-module.exports = { searchProducts, getCategories, getProductDetails };
+module.exports = { searchProducts, getProductDetails };

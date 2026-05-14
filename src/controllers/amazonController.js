@@ -1,4 +1,5 @@
 const amazonModel = require('../models/amazonModel');
+const amazonCategoryModel = require('../models/amazonCategoryModel');
 
 const searchProducts = async (req, res) => {
   // Obtenemos el término de búsqueda desde la URL. Ej: /api/amazon/buscar?q=laptops
@@ -19,7 +20,7 @@ const searchProducts = async (req, res) => {
 
 const getCategories = async (req, res) => {
   try {
-    const categories = await amazonModel.getCategories();
+    const categories = await amazonCategoryModel.getCategories();
     res.json({ success: true, source: 'amazon', categories });
   } catch (error) {
     console.error("Error en el controlador de categorías:", error);

@@ -1,5 +1,5 @@
 // Importamos la lógica de negocio desde el modelo
-const priceModel = require('../models/priceModel');
+const finalPriceModel = require('../models/finalPriceModel');
 
 const cotizarProducto = (req, res) => {
   const { amazonPrice, weightKg } = req.body;
@@ -11,7 +11,7 @@ const cotizarProducto = (req, res) => {
 
   try {
     // El controlador llama al modelo para hacer el cálculo
-    const finalPriceDetails = priceModel.calculateFinalPrice(amazonPrice, weightKg);
+    const finalPriceDetails = finalPriceModel.calculateFinalPrice(amazonPrice, weightKg);
     res.json(finalPriceDetails); // Esta es nuestra "Vista" (Respuesta JSON)
   } catch (error) {
     res.status(500).json({ error: 'Ocurrió un error al calcular el precio.' });
