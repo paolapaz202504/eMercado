@@ -2,7 +2,8 @@ const fs = require('fs');
 const path = require('path');
 
 const { getExchangeRate } = require('./exchangeModel');
-const { findCategoryById } = require('./amazonCategoryModel');
+const sacModel = require('./sacModel');
+
 /**
  * Obtener valores predefinidos para el cálculo de precio de productos
  */
@@ -41,7 +42,7 @@ async function ratesForCalculatingPrice(productCategoryId) {
     
     let categoryRates = null;
     if (productCategoryId) {
-        categoryRates = await findCategoryById(productCategoryId);
+        categoryRates = await sacModel.findCategoryById(productCategoryId);
     }
     
 
@@ -52,8 +53,8 @@ async function ratesForCalculatingPrice(productCategoryId) {
         foreignExchangeManagementExpense: defaultValues.foreignExchangeManagementExpense,
         comissionRate: defaultValues.comissionRate,
         insuranceCommission: defaultValues.insuranceCommission,
-        importDutyRate: categoryRates !== null ? categoryRates.importDutyRate : defaultValues.importDutyRate,
-        valueAddedRate: categoryRates !== null ? categoryRates.valueAddedRate : defaultValues.valueAddedRate
+        importDutyRate: categoryRates !== null ? categoryRates.dai_rate : defaultValues.importDutyRate,
+        valueAddedRate: categoryRates !== null ? categoryRates.iva_rate : defaultValues.valueAddedRate
     };
     return result;
 }

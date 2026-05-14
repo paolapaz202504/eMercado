@@ -9,7 +9,7 @@ let cacheDatePart = null;
  * Obtiene la lista de categorías, utilizando caché para no saturar la API.
  */
 async function getCategories() {
-  const gtNow = getGuatemalaTime();
+  let gtNow = getGuatemalaTime();
   if (cacheDatePart === gtNow.dateOnly && memoryCachedCategories !== null) {
     console.log('🧠 Retornando categorías desde memoria RAM...');
     return memoryCachedCategories;
@@ -64,7 +64,7 @@ async function getCategories() {
   const categoriesData = data.data || data;
   
   // 3. Guardamos el resultado en caché creando las carpetas si no existen
-  const gtNow = getGuatemalaTime();
+  gtNow = getGuatemalaTime();
   const cacheContent = {
     created_at: gtNow.full,
     categories: categoriesData

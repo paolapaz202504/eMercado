@@ -181,6 +181,15 @@ async function getProductDetails(asin) {
   
   productData.product_price_gt = productPrice;
 
+  console.log('---------------------------------------------');
+  console.log(`Producto: ${productData.product_title}`);
+  console.log(`Precio en Quetzales (GTQ): ${basePriceGTQ} `);
+  console.log(`Valor de seguros (GTQ): ${insuranceValue} `);
+  console.log(`Valor de comisión (GTQ): ${commissionValue} `);
+  console.log(`Valor de derechos de importación (GTQ): ${importDutyValue} `);
+  console.log(`Valor de IVA (GTQ): ${valueAddedValue} `);
+  console.log(`Precio total (GTQ): ${productPrice} `);
+
   if (productData.product_original_price) {
     const matchOrig = productData.product_original_price.toString().match(/[\d,.]+/);
     if (matchOrig) {
