@@ -5,7 +5,8 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon src/index.js",
+    "debug": "nodemon --inspect src/index.js"
   },
   "keywords": [],
   "author": "",
@@ -16,5 +17,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
+  },
+  "nodemonConfig": {
+    "ignore": ["cache/*"]
   }
 }
