@@ -350,11 +350,22 @@
                         let videosHtml = '';
                         if (prod.product_videos && prod.product_videos.length > 0) {
                             videosHtml = '<h3 class="text-lg font-bold mt-6 mb-2 border-b pb-1">Videos del Producto</h3><div class="flex gap-4 overflow-x-auto py-2">';
+                            videosHtml = '<h3 class="text-xl font-bold mt-8 mb-4 text-gray-800 flex items-center border-b-2 border-blue-200 pb-2 w-full"><i class="fas fa-video text-blue-600 mr-2"></i> Videos del Producto</h3><div class="flex flex-col gap-6 w-full py-2">';
                             prod.product_videos.forEach(video => {
                                 // La API puede enviar un objeto con url o directamente el string
                                 const vidUrl = typeof video === 'object' ? video.video_url : undefined;
+                                const posterAttr = typeof video === 'object' && video.thumbnail_url ? `poster="${video.thumbnail_url}"` : '';
+                                const titleHtml = typeof video === 'object' && video.title ? `<h4 class="text-sm font-semibold text-gray-800 mt-3 text-center">${video.title}</h4>` : '';
                                 if(vidUrl) {
-                                   videosHtml += `<video controls class="h-40 rounded shadow-sm bg-black"><source src="${vidUrl}" type="video/mp4">Tu navegador no soporta videos.</video>`;
+                                   
+                                   videosHtml += `
+                                   <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-sm w-full flex flex-col items-center">
+                                       <video controls class="w-full max-h-64 rounded shadow-sm bg-black" ${posterAttr}>
+                                           <source src="${vidUrl}">
+                                           Tu navegador no soporta videos.
+                                       </video>
+                                       ${titleHtml}
+                                   </div>`;
                                 }
                             });
                             videosHtml += '</div>';
