@@ -352,7 +352,7 @@
                             videosHtml = '<h3 class="text-lg font-bold mt-6 mb-2 border-b pb-1">Videos del Producto</h3><div class="flex gap-4 overflow-x-auto py-2">';
                             prod.product_videos.forEach(video => {
                                 // La API puede enviar un objeto con url o directamente el string
-                                const vidUrl = typeof video === 'string' ? video : (video.url || video.link);
+                                const vidUrl = typeof video === 'object' ? video.video_url : undefined;
                                 if(vidUrl) {
                                    videosHtml += `<video controls class="h-40 rounded shadow-sm bg-black"><source src="${vidUrl}" type="video/mp4">Tu navegador no soporta videos.</video>`;
                                 }
