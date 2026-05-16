@@ -1,5 +1,5 @@
-const amazonModel = require('../models/amazonModel');
-const amazonCategoryModel = require('../models/amazonCategoryModel');
+const amazonModel = require('../models/amazon/amazonModel');
+const amazonCategoryModel = require('../models/amazon/amazonCategoryModel');
 
 const searchProducts = async (req, res) => {
   // Obtenemos el término de búsqueda desde la URL. Ej: /api/amazon/buscar?q=laptops

@@ -137,13 +137,16 @@
             }
         }
 
-        function agregarAlCarrito(asin, titleBase64, price, photoBase64, esDesdeDetalle = false, priceGt = 0, maxStock = 99, deliveryBase64 = '') {
+        async function agregarAlCarrito(asin, titleBase64, price, photoBase64, esDesdeDetalle = false, priceGt = 0, maxStock = 99, deliveryBase64 = '') {
             const title = decodeURIComponent(titleBase64);
             const photoUrl = decodeURIComponent(photoBase64);
-            const delivery = deliveryBase64 ? decodeURIComponent(deliveryBase64) : 'Entrega estándar';
+            let delivery = deliveryBase64 ? decodeURIComponent(deliveryBase64) : 'Entrega estándar';
             
             let cantidadAAgregar = 1;
             let stockReal = maxStock;
+            let finalPriceGt = priceGt;
+            let finalPriceStr = price;
+            let priceChanged = false;
             
             if (esDesdeDetalle) {
                 const inputCantidad = document.getElementById('cantidad-producto');
@@ -151,6 +154,49 @@
                     cantidadAAgregar = parseInt(inputCantidad.value) || 1;
                     stockReal = parseInt(inputCantidad.getAttribute('data-max')) || maxStock;
                 }
+            } else {
+                // Al agregar desde la lista, consultamos el detalle para obtener el precio exacto (Categoría y DAI)
+                Swal.fire({
+                    title: 'Verificando precio final...',
+                    text: 'Calculando impuestos exactos de importación...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                try {
+                    const response = await fetch(`/api/amazon/producto/${asin}?t=${new Date().getTime()}`);
+                    const data = await response.json();
+                    
+                    if (data.success && data.details) {
+                        const prod = data.details;
+                        
+                        if (prod.is_out_of_stock || !prod.product_price_gt || prod.product_price_gt <= 0) {
+                            Swal.fire('Agotado', 'El producto ya no está disponible para la venta.', 'error');
+                            return;
+                        }
+                        
+                        // Actualizar el stock real
+                        const matchStock = (prod.product_availability || '').match(/queda[^\d]*(\d+)/i);
+                        if (matchStock && matchStock[1]) {
+                            stockReal = parseInt(matchStock[1]);
+                        }
+                        
+                        delivery = prod.delivery || delivery;
+
+                        // Si el precio calculado es diferente al estimado de la búsqueda
+                        if (Math.abs(prod.product_price_gt - priceGt) > 0.01) {
+                            finalPriceGt = prod.product_price_gt;
+                            finalPriceStr = 'Q ' + new Intl.NumberFormat('es-GT', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(finalPriceGt);
+                            priceChanged = true;
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error al obtener detalles para el carrito:", error);
+                }
+                
+                Swal.close();
             }
 
             // Validar la cantidad total en carrito + la nueva a agregar contra el stock disponible
@@ -164,17 +210,27 @@
 
             if (index !== -1) {
                 carrito[index].cantidad = cantidadActual + cantidadAAgregar;
-                if (priceGt) carrito[index].priceGt = priceGt;
-                if (price) carrito[index].price = price;
+                if (finalPriceGt) carrito[index].priceGt = finalPriceGt;
+                if (finalPriceStr) carrito[index].price = finalPriceStr;
                 carrito[index].maxStock = stockReal;
                 carrito[index].delivery = delivery;
             } else {
-                carrito.push({ asin, title, price, photoUrl, cantidad: cantidadAAgregar, priceGt, maxStock: stockReal, delivery });
+                carrito.push({ asin, title, price: finalPriceStr, photoUrl, cantidad: cantidadAAgregar, priceGt: finalPriceGt, maxStock: stockReal, delivery });
             }
 
             localStorage.setItem('carrito', JSON.stringify(carrito));
             actualizarContadorCarrito();
-            mostrarAlerta(`¡${cantidadAAgregar} producto(s) agregado(s) al carrito exitosamente!`, 'success');
+            
+            if (priceChanged) {
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Agregado al carrito!',
+                    html: `Se agregó al carrito.<br><br><span style="color: #16a34a; font-weight: bold;">El precio se actualizó a ${finalPriceStr} al calcular el impuesto exacto.</span>`,
+                    confirmButtonColor: '#3b82f6'
+                });
+            } else {
+                mostrarAlerta(`¡${cantidadAAgregar} producto(s) agregado(s) al carrito exitosamente!`, 'success');
+            }
         }
 
         function cambiarCantidad(cambio) {

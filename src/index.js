@@ -3,7 +3,6 @@ const express = require('express');
 const path = require('path');
 
 // Importar rutas
-const priceRoutes = require('./routes/priceRoutes');
 const amazonRoutes = require('./routes/amazonRoutes');
 
 const app = express();
@@ -18,7 +17,6 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Usar las rutas integradas
-app.use('/api', priceRoutes);
 app.use('/api/amazon', amazonRoutes);
 
 // Iniciar el servidor
