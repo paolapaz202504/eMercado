@@ -723,10 +723,9 @@
                                     
                                     <div class="text-3xl font-extrabold text-blue-700 mb-1">
                                         ${prod.product_price_gt ? 'Q ' + new Intl.NumberFormat('es-GT', {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(prod.product_price_gt) : 'Consultar'}
-                                        <span class="text-sm text-gray-500 font-normal ml-2">(${prod.product_price || ''})</span>
                                     </div>
                                     <div class="text-sm text-green-600 font-medium mb-4 flex items-center gap-1">
-                                        <i class="fas fa-check-circle"></i> Precio final (Impuestos calculados por categoría)
+                                        <i class="fas fa-check-circle"></i> Precio final (Impuestos calculados por categoría ${prod.category.name || 'desconocida'})
                                     </div>
 
                                     <div class="mb-4 text-sm bg-gray-100 p-3 rounded border border-gray-200">${stockHtml}</div>
