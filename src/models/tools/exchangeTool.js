@@ -1,6 +1,7 @@
 const path = require('path');
 const { getGuatemalaTime } = require('./timeTool');
 const localCacheTool = require('./localCacheTool');
+const envTool = require('./envTool');
 
 /**
  * Herramienta con responsabilidad única: Obtener y gestionar el tipo de cambio.
@@ -8,9 +9,9 @@ const localCacheTool = require('./localCacheTool');
 class ExchangeTool {
   constructor() {
     // Configuraciones de APIs externas
-    this.urlMxn = process.env.EXCHANGE_RATE_GT_MX || 'https://open.er-api.com/v6/latest/MXN';
-    this.urlUsd = process.env.EXCHANGE_RATE_USD_BASE || 'https://open.er-api.com/v6/latest/USD';
-    this.bankName = process.env.EXCHANGE_RATE_BANK || 'API de Referencia';
+    this.urlMxn = envTool.getString('EXCHANGE_RATE_GT_MX', 'https://open.er-api.com/v6/latest/MXN');
+    this.urlUsd = envTool.getString('EXCHANGE_RATE_USD_BASE', 'https://open.er-api.com/v6/latest/USD');
+    this.bankName = envTool.getString('EXCHANGE_RATE_BANK', 'API de Referencia');
     
     // Directorio de caché
     this.cacheDir = path.join(__dirname, '../../../cache/exchange_rate/gt_mx');

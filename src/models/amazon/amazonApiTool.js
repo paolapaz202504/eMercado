@@ -1,11 +1,13 @@
+const envTool = require('../tools/envTool');
+
 /**
  * Herramienta genérica con Responsabilidad Única:
  * Centralizar y ejecutar peticiones seguras a la API de Amazon (RapidAPI).
  */
 class AmazonApiTool {
   constructor() {
-    this.apiKey = process.env.AMAZON_API_KEY;
-    this.apiHost = process.env.AMAZON_API_HOST;
+    this.apiKey = envTool.getString('AMAZON_API_KEY');
+    this.apiHost = envTool.getString('AMAZON_API_HOST');
   }
 
   async fetch(url) {

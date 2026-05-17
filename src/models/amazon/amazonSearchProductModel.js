@@ -2,15 +2,16 @@ const path = require('path');
 const amazonPricingRatesModel = require('./amazonPricingRatesModel');
 const localCacheTool = require('../tools/localCacheTool');
 const amazonApiTool = require('./amazonApiTool');
+const envTool = require('../tools/envTool');
 
 /**
  * Clase con responsabilidad única: Buscar productos en Amazon.
  */
 class AmazonSearchProductModel {
   constructor() {
-    this.searchBaseUrl = process.env.AMAZON_API_SEARCH_URL;
+    this.searchBaseUrl = envTool.getString('AMAZON_API_SEARCH_URL');
     this.cacheDir = path.join(__dirname, '../../../cache/aws_mx/search');
-    this.cacheMinutes = parseInt(process.env.AMAZON_SEARCH_PRODUCT_CACHE_MINUTE_TIME, 10) || 10;
+    this.cacheMinutes = envTool.getInt('AMAZON_SEARCH_PRODUCT_CACHE_MINUTE_TIME', 10);
   }
 
   async searchProducts(searchQuery) {

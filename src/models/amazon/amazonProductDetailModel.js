@@ -2,14 +2,15 @@ const path = require('path');
 const amazonPricingRatesModel = require('./amazonPricingRatesModel');
 const localCacheTool = require('../tools/localCacheTool');
 const amazonApiTool = require('./amazonApiTool');
+const envTool = require('../tools/envTool');
 
 /**
  * Clase con responsabilidad única: Obtener los detalles de un producto en Amazon.
  */
 class AmazonProductDetailModel {
   constructor() {
-    this.detailsBaseUrl = process.env.AMAZON_API_DETAILS_URL;
-    this.cacheMinutes = parseInt(process.env.AMAZON_DETAILS_PRODUCT_CACHE_MINUTE_TIME, 10) || 10;
+    this.detailsBaseUrl = envTool.getString('AMAZON_API_DETAILS_URL');
+    this.cacheMinutes = envTool.getInt('AMAZON_DETAILS_PRODUCT_CACHE_MINUTE_TIME', 10);
     this.cacheDir = path.join(__dirname, '../../../cache/aws_mx/details');
   }
 
@@ -42,16 +43,6 @@ class AmazonProductDetailModel {
     const rateData = await amazonPricingRatesModel.getPricingRates(categoryId);
     
     productData = amazonPricingRatesModel.applyPricingRules(productData, rateData);
-    return this._calculateOriginalPriceGTQ(productData, rateData);
-  }
-
-  _calculateOriginalPriceGTQ(productData, rateData) {
-    if (!productData.product_original_price) return productData;
-
-    const matchOrig = productData.product_original_price.toString().match(/[\d,.]+/);
-    if (matchOrig) {
-      productData.product_original_price_gt = parseFloat(matchOrig[0].replace(/,/g, '')) * rateData.rate;
-    }
     return productData;
   }
 }

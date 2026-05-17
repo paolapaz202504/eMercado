@@ -2,6 +2,7 @@ const path = require('path');
 const { getGuatemalaTime } = require('../tools/timeTool');
 const localCacheTool = require('../tools/localCacheTool');
 const amazonApiTool = require('./amazonApiTool');
+const envTool = require('../tools/envTool');
 
 /**
  * Clase con responsabilidad única: Obtener y gestionar el caché de las categorías de Amazon.
@@ -13,7 +14,7 @@ class AmazonCategoryModel {
     this.cacheDatePart = null;
 
     // Configuración de API
-    this.apiUrl = process.env.AMAZON_API_CATEGORIES_URL;
+    this.apiUrl = envTool.getString('AMAZON_API_CATEGORIES_URL');
 
     // Configuraciones de caché
     this.cacheDir = path.join(__dirname, '../../../cache/aws_mx');
