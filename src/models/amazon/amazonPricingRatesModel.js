@@ -16,6 +16,8 @@ class AmazonPricingRatesModel {
     this.exchangeRateAdjustmentUsdGTQ = envTool.getFloat('EXCHANGE_RATE_ADJUSTMENT_USD_GTQ', 0.02); // Ajuste del 2% para el tipo de cambio USD a GTQ.
     this.exchangeRateAdjustmentMxnUsd = envTool.getFloat('EXCHANGE_RATE_ADJUSTMENT_MXN_USD', 0.002); // Ajuste del 0.2% para el tipo de cambio MXN a USD.
     this.foreignExchangeManagementExpense = envTool.getFloat('FOREIGN_EXCHANGE_MANAGEMENT_EXPENSE', 0.04); // 4% Gasto de gestión de cambio extranjero.
+    this.ducaLimiteUsd = envTool.getFloat('DUCA_LIMITE_USD', 1000); // Límite en USD para aplicar DUCA.
+    this.ducaValueGtq = envTool.getFloat('DUCA_VALUE_GTQ', 750); // Valor fijo en GTQ para DUCA cuando el CIF excede el límite.
     this.storageCostPerProduct = envTool.getFloat('STORAGE_MX_COST_PER_PRODUCT_GTQ', 15); // Precio por almacenar cada producto en bodega méxico (en quetzales).
     this.transportCostPerProduct = envTool.getFloat('TRANSPORT_MX_COST_PER_PRODUCT_GTQ', 30); // Precio por transportar cada producto desde México a Guatemala (en quetzales).
     this.deliveryCostPerProduct = envTool.getFloat('DELIVERY_GT_COST_PER_PRODUCT_GTQ', 25); // Pago por servicio de enviar a domicilio en Guatemala (en quetzales). 
@@ -72,12 +74,15 @@ class AmazonPricingRatesModel {
     let internationalTransportInsuranceValue = (priceGTQ + this.transportCostPerProduct) * rateData.internationalTransportInsuranceRate; // Calcular el seguro de transporte internacional para CIF
     let cifPriceGTQ = priceGTQ + internationalTransportInsuranceValue + this.transportCostPerProduct; // Calcular el precio CIF (Costo, Seguro y Flete) en GTQ
 
+    let ducaValue = (cifPriceGTQ / rateData.usd_gtq_adjusted) > this.ducaLimiteUsd ? this.ducaValueGtq : 0; // Calcular el valor de DUCA en GTQ si el precio CIF excede el límite en USD
+    
     let commissionValue = priceGTQ * rateData.comissionRate;
     let insuranceValue = priceGTQ * rateData.insuranceCommission;
 
     let importDutyValue = cifPriceGTQ * rateData.importDutyRate;
     let valueAddedValue = (cifPriceGTQ + importDutyValue) * rateData.valueAddedRate;
     let finalPriceGTQ = priceGTQ + commissionValue + insuranceValue + importDutyValue + valueAddedValue
+                        + ducaValue
                         + this.transportCostPerProduct + this.storageCostPerProduct + this.deliveryCostPerProduct;
 
     console.log('---------------------------------------------');
@@ -93,9 +98,14 @@ class AmazonPricingRatesModel {
 
     console.log(`Precio convertido a GTQ: ${priceGTQ.toFixed(4)} `);
 
-    console.log(`Costo de transporte (GTQ): ${this.transportCostPerProduct.toFixed(2)} `);
+    console.log(`Costo de transporte (GTQ): ${this.transportCostPerProduct.toFixed(4)} `);
     console.log(`Valor de seguro de transporte internacional para CIF (GTQ): ${internationalTransportInsuranceValue.toFixed(5)} `);
     console.log(`Precio CIF (GTQ): ${cifPriceGTQ.toFixed(4)} `);
+
+    console.log(`Límite para DUCA (USD): ${this.ducaLimiteUsd} `);
+    console.log(`Tipo de cambio para calcular DUCA (USD a GTQ): ${rateData.usd_gtq_adjusted.toFixed(6)} `);
+    console.log(`Precio CIF en USD: ${(cifPriceGTQ / rateData.usd_gtq_adjusted).toFixed(6)} `);
+    console.log(`Valor de DUCA (GTQ): ${ducaValue.toFixed(4)} `);
 
     console.log(`Tasa de comisión (GTQ): ${rateData.comissionRate} `);
     console.log(`Valor de comisión (GTQ): ${commissionValue.toFixed(4)} `);
@@ -123,6 +133,10 @@ class AmazonPricingRatesModel {
       foreign_exchange_management_expense: rateData.foreignExchangeManagementExpense,
       foreign_exchange_management_expense_value: foreignExchangeExpenseValue,
       price_gtq: priceGTQ,
+      cifPriceGTQ: cifPriceGTQ,
+      cifPriceUSD: cifPriceGTQ / rateData.usd_gtq_adjusted,
+      ducaLimiteUsd: this.ducaLimiteUsd,
+      duca_value: ducaValue,  
       comission_rate: rateData.comissionRate,
       comission_value: commissionValue,
       insurrance_commission: rateData.insuranceCommission,
