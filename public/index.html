@@ -62,6 +62,23 @@
         <!-- Sección Búsqueda (Oculta por defecto) -->
         <div id="seccion-busqueda" class="hidden">
             <h2 class="text-2xl font-semibold mb-6 border-b pb-2">Resultados de Búsqueda</h2>
+
+            <!-- Controles de Ordenamiento -->
+            <div id="controles-busqueda" class="hidden flex flex-wrap justify-between items-center mb-6 bg-white p-4 rounded shadow-sm border border-gray-200">
+                <span id="texto-busqueda-info" class="text-gray-700 font-medium mb-2 sm:mb-0"></span>
+                <div class="flex items-center gap-3">
+                    <label for="selectOrden" class="text-sm font-semibold text-gray-700">Ordenar por:</label>
+                    <select id="selectOrden" onchange="ejecutarBusqueda(1)" class="border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer">
+                        <option value="RELEVANCE" selected>Mayor Relevancia</option>
+                        <option value="LOWEST_PRICE">Menor a mayor precio</option>
+                        <option value="HIGHEST_PRICE">Mayor a menor precio</option>
+                        <option value="REVIEWS">Mejores opiniones</option>
+                        <option value="NEWEST">Más recientes</option>
+                        <option value="BEST_SELLERS">Los más vendidos</option>
+                    </select>
+                </div>
+            </div>
+
             <!-- Contenedor donde JavaScript inyectará los productos -->
             <div id="busqueda-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 <!-- Se inyectará el HTML desde JS -->
@@ -395,35 +412,73 @@
             }
         }
 
+        let busquedaActual = '';
+
         // Detectar si el usuario presiona Enter en el input de búsqueda
         function manejarEnter(event) {
             if (event.key === 'Enter') {
-                ejecutarBusqueda();
+                ejecutarBusqueda(1);
             }
         }
 
         // Lógica principal de búsqueda
-        function ejecutarBusqueda() {
-            const textoBusqueda = document.getElementById('inputBusqueda').value.trim();
-            if (!textoBusqueda) return;
+        function ejecutarBusqueda(page = 1) {
+            const inputElement = document.getElementById('inputBusqueda');
+            const textoBusqueda = inputElement ? inputElement.value.trim() : '';
+            
+            if (page === 1) {
+                if (!textoBusqueda) return;
+                busquedaActual = textoBusqueda;
+            }
+
+            const sortBy = document.getElementById('selectOrden') ? document.getElementById('selectOrden').value : 'RELEVANCE';
 
             mostrarSeccion('busqueda');
             const container = document.getElementById('busqueda-container');
-            container.innerHTML = '<p class="text-center text-gray-500 col-span-full py-10"><i class="fas fa-spinner fa-spin text-2xl"></i><br>Buscando productos...</p>';
+            const controles = document.getElementById('controles-busqueda');
+            const infoTexto = document.getElementById('texto-busqueda-info');
 
-            fetch(`/api/amazon/buscar?q=${encodeURIComponent(textoBusqueda)}`)
+            if (page === 1) {
+                container.innerHTML = '<p class="text-center text-gray-500 col-span-full py-10"><i class="fas fa-spinner fa-spin text-2xl"></i><br>Buscando productos...</p>';
+                if (controles) controles.classList.add('hidden');
+            } else {
+                const btnCargarMas = document.getElementById('btn-cargar-mas');
+                if (btnCargarMas) {
+                    btnCargarMas.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Cargando más registros...';
+                    btnCargarMas.disabled = true;
+                }
+            }
+
+            fetch(`/api/amazon/buscar?q=${encodeURIComponent(busquedaActual)}&page=${page}&sort_by=${sortBy}`)
                 .then(response => response.json())
                 .then(data => {
-                    container.innerHTML = ''; 
+                    if (page === 1) {
+                        container.innerHTML = ''; 
+                        if (controles) {
+                            controles.classList.remove('hidden');
+                            if (infoTexto) infoTexto.innerHTML = `Resultados para: <b>"${busquedaActual}"</b>`;
+                        }
+                    } else {
+                        const oldBtnContainer = document.getElementById('contenedor-cargar-mas');
+                        if (oldBtnContainer) oldBtnContainer.remove();
+                    }
                     
                     // Mostrar el error si el backend falló (ej. error de tipo de cambio)
                     if (data.error) {
-                        container.innerHTML = `<p class="text-center text-red-500 col-span-full font-bold">${data.error} <br> <span class="text-sm font-normal text-gray-500">${data.detalle || ''}</span></p>`;
+                        if (page === 1) {
+                            container.innerHTML = `<p class="text-center text-red-500 col-span-full font-bold">${data.error} <br> <span class="text-sm font-normal text-gray-500">${data.detalle || ''}</span></p>`;
+                        } else {
+                            mostrarAlerta(data.error, 'error');
+                        }
                         return;
                     }
 
                     if (!data.products || data.products.length === 0) {
-                        container.innerHTML = '<p class="text-center text-gray-500 col-span-full">No se encontraron productos para esta búsqueda.</p>';
+                        if (page === 1) {
+                            container.innerHTML = '<p class="text-center text-gray-500 col-span-full font-medium text-lg mt-8"><i class="fas fa-search mb-2 text-3xl"></i><br>Actualice su criteria de búsqueda para obtener más resultados.</p>';
+                        } else {
+                            mostrarAlerta('Actualice su criteria de búsqueda para obtener más resultados.', 'info');
+                        }
                         return;
                     }
 
@@ -442,7 +497,7 @@
                             <div class="h-48 w-full bg-white flex items-center justify-center mb-4 rounded overflow-hidden cursor-pointer" onclick="verDetallesProducto('${prod.asin}')">
                                 <img src="/api/amazon/imagen?url=${encodeURIComponent(prod.product_photo)}" alt="Foto del producto" class="max-h-full max-w-full object-contain hover:scale-105 transition-transform">
                             </div>
-                            <h3 class="font-bold text-gray-800 text-sm line-clamp-2 mb-2 cursor-pointer hover:text-blue-600 transition-colors" title="${prod.product_title}" onclick="verDetallesProducto('${prod.asin}')">${prod.product_title}</h3>
+                            <h3 class="font-bold text-gray-800 text-sm line-clamp-4 mb-2 cursor-pointer hover:text-blue-600 transition-colors" title="${prod.product_title}" onclick="verDetallesProducto('${prod.asin}')">${prod.product_title}</h3>
                             <div class="text-yellow-500 text-xs mb-2 font-medium">
                                 <i class="fas fa-star"></i> ${prod.product_star_rating || 'N/A'} <span class="text-gray-500 font-normal">(${prod.product_num_ratings || 0} opiniones)</span>
                             </div>
@@ -462,9 +517,40 @@
                         `;
                         container.appendChild(div);
                     });
+
+                    // Lógica para el botón "Cargar más" (máximo 5 páginas)
+                    if (data.products.length > 0) {
+                        const btnContainer = document.createElement('div');
+                        btnContainer.id = 'contenedor-cargar-mas';
+                        btnContainer.className = 'col-span-full flex flex-col items-center justify-center mt-8 mb-4 border-t border-gray-200 pt-6';
+                        
+                        if (page < 5) {
+                            btnContainer.innerHTML = `
+                                <button id="btn-cargar-mas" onclick="ejecutarBusqueda(${page + 1})" class="bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-3 px-8 rounded-full border border-blue-300 shadow-sm transition-colors text-sm flex items-center">
+                                    <i class="fas fa-plus-circle mr-2"></i> Cargar 25 registros más (Página ${page + 1} de 5)
+                                </button>
+                            `;
+                        } else {
+                            btnContainer.innerHTML = `
+                                <p class="text-gray-500 font-medium bg-gray-50 py-3 px-6 rounded border border-gray-200 shadow-sm text-center">
+                                    <i class="fas fa-info-circle text-blue-500 mr-2"></i> Actualice su criteria de búsqueda para obtener más resultados.
+                                </p>
+                            `;
+                        }
+                        container.appendChild(btnContainer);
+                    }
                 })
                 .catch(error => {
-                    container.innerHTML = '<p class="text-center text-red-500 col-span-full">Ocurrió un error al buscar los productos.</p>';
+                    if (page === 1) {
+                        container.innerHTML = '<p class="text-center text-red-500 col-span-full">Ocurrió un error al buscar los productos.</p>';
+                    } else {
+                        mostrarAlerta('Ocurrió un error al cargar más productos.', 'error');
+                        const btnCargarMas = document.getElementById('btn-cargar-mas');
+                        if (btnCargarMas) {
+                            btnCargarMas.innerHTML = `<i class="fas fa-plus-circle mr-2"></i> Reintentar cargar (Página ${page + 1} de 5)`;
+                            btnCargarMas.disabled = false;
+                        }
+                    }
                 });
         }
 

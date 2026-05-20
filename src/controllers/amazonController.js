@@ -4,14 +4,22 @@ const amazonCategoryModel = require('../models/amazon/amazonCategoryModel');
 const searchProducts = async (req, res) => {
   // Obtenemos el término de búsqueda desde la URL. Ej: /api/amazon/buscar?q=laptops
   const searchQuery = req.query.q; 
+  // Obtenemos la página si es enviada, de lo contrario usamos la página 1
+  const page = parseInt(req.query.page, 10) || 1;
+  // Obtenemos el tipo de ordenamiento
+  const sortBy = req.query.sort_by || 'RELEVANCE';
 
   if (!searchQuery) {
     return res.status(400).json({ error: 'Debes proporcionar un término de búsqueda válido usando el parámetro "q".' });
   }
 
   try {
-    const products = await amazonModel.searchProducts(searchQuery);
-    res.json({ success: true, query: searchQuery, products });
+    const result = await amazonModel.searchProducts(searchQuery, page, sortBy);
+    
+    const products = result.products || result; // Fallback por seguridad
+    const pagination = result.pagination || { current_page: page, total_pages: 1 };
+
+    res.json({ success: true, query: searchQuery, page, pagination, products });
   } catch (error) {
     console.error("Error en el controlador:", error);
     res.status(500).json({ error: 'Ocurrió un error al intentar obtener los productos.', detalle: error.message });
